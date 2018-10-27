@@ -1,0 +1,150 @@
+---
+title: "Coursera Practical Machine Learning"
+author: "Jefferson Esquivel"
+date: "10/27/2018"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+# Practical Machine Learning
+# Course Project
+
+
+## 1) Overview
+
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways.
+
+## 2) Requirements
+
+### 2.1) Libraries
+
+The following analysis requires the following packages/libraries installed on R:
+
+```{r, echo=T, results='hide'}
+library(lattice)
+library(ggplot2)
+library(caret)
+library(rpart)
+library(rattle)
+library(randomForest)
+
+```
+
+### 2.2) Data download
+
+This project is based on data located in the following web directories:
+
+```{r, echo=T, results='hide'}
+if(!file.exists("pml-training.csv")){
+  myURL = paste("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv",sep = "")
+  
+  dir = "pml-training.csv"
+  download.file(myURL, dir, mode="wb")  
+}
+
+
+if(!file.exists("pml-testing.csv")){
+  myURL = paste("https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv",sep = "")
+  
+  dir = "pml-testing.csv"
+  download.file(myURL, dir, mode="wb")    
+}
+
+
+trainSet <- read.csv("pml-training.csv", na.strings = c("NA", "#DIV/0!", ""))
+testSet<-read.csv("pml-testing.csv",na.strings=c("NA","#DIV/0!"))
+```
+
+Since we only want to make the data once, a prior validation was applied.
+
+### 2.3) Data preparation
+
+```{r, echo=T, results='hide'}
+NA_Count = sapply(1:dim(trainSet)[2],function(x)sum(is.na(trainSet[,x])))
+NA_list = which(NA_Count>0)
+
+trainSet = trainSet[,-NA_list]
+trainSet = trainSet[,-c(1:7)]
+trainSet$classe = factor(trainSet$classe)
+
+NA_Count1 = sapply(1:dim(testSet)[2],function(x)sum(is.na(testSet[,x])))
+NA_list1 = which(NA_Count1>0)
+testSet = testSet[,-NA_list]
+testSet = testSet[,-c(1:7)]
+```
+
+Before we start with the analysis. Let's take a quick view on the data that we have prepared:
+
+```{r}
+dim(trainSet)
+
+
+dim(testSet)
+
+```
+
+At this point should be useful if we perform a head command to check the first rows in the dataset. A Summary to check what we have and also a STR to check the types but since we have a lot of columns, those commands will not be applied to this Markdown document but should be used to have a clear idea about what we have to work with.
+
+## 3) Starting with the Machine Learning
+
+Having the testing data, the first step in the process will be split the data on 60/40. This will be 60% to test and 40% to apply a validation. Once we have the two groups, let's check the size (dim) of them.
+
+
+```{r}
+inTrain=createDataPartition(y=trainSet$classe, p=0.6, list=FALSE)
+training <-trainSet[inTrain,]
+testing <- trainSet[-inTrain,]
+
+dim(training)
+
+dim(testing)
+```
+
+
+With the data ready, we will try to find a > 99% on the level of the prediction. To achieve that, the roadmap will be first try with the Rpart method and then apply RandomForest method in order to compare the results and check which of them have a better fit with this data. To order this process, they will be listed next as First and Second try:
+
+### 3.1) First try
+
+```{r}
+try_fit01 <- train(classe ~ .,method='rpart',data=training)
+fancyRpartPlot(try_fit01$finalModel) 
+
+
+fit01_pred=predict(try_fit01,newdata=testing)
+z=confusionMatrix(fit01_pred,testing$classe)
+z$table
+
+z$overall[1]
+```
+
+### 3.2) Second try
+
+```{r}
+
+try_fit02=randomForest(classe~., data=training, method='class')
+fit02_pred = predict(try_fit02,testing,type='class') 
+qplot(roll_belt, magnet_dumbbell_y, colour=classe, data=training)  
+
+z2=confusionMatrix(fit02_pred,testing$classe)
+z2$table
+
+z2$overall[1]
+```
+
+### 3.3) Conclusion
+
+Having the results from Overall on Try 1 with rPart and Try 2 with RandomForest. RandomForest provide us with a better model fit to the data. So the next step will be apply randomForest method to the data:
+
+
+```{r}
+
+fit03_pred =  predict(try_fit02,testSet,type='class')
+
+fit03_pred
+```
+
+And this will be used to answer the 20-question part of this Machine learning class.
+
+
+
